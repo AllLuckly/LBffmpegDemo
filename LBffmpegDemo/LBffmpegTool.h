@@ -14,7 +14,11 @@
 #include <libavutil/imgutils.h>
 #include <libswscale/swscale.h>
 /*-------------------------------------------*/
-
+/*----------------推流必须导入-----------------*/
+//#include <libavformat/avformat.h>
+#include <libavutil/mathematics.h>
+#include <libavutil/time.h>
+/*----------------推流必须导入-----------------*/
 
 @interface LBffmpegTool : NSObject
 
@@ -25,5 +29,13 @@
  *return 解码后的信息
  */
 - (NSString *)decoder:(NSString *)input_str output_str:(NSString *)output_str;
+
+/*
+ *
+ *input_str  输入的文件路径
+ *output_str 输出的推流链接
+ *
+ */
+- (void)pushFlow:(NSString *)input_str output_str:(NSString *)output_rtmpStr;
 
 @end
