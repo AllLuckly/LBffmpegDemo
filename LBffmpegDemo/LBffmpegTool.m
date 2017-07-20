@@ -10,6 +10,19 @@
 
 static id _instance = nil;
 
+// 1 : 编码模式
+// 0 : 渲染模式
+// 将 encodeModel 设置为1，就是编码采集到视频数据；将 encodeModel 设置为0，就是渲染采集到的视频数据
+#define encodeModel 1
+
+@interface LBffmpegTool(){
+  
+}
+
+
+
+@end
+
 @implementation LBffmpegTool
 
 +(id)allocWithZone:(struct _NSZone *)zone{
@@ -249,6 +262,8 @@ static id _instance = nil;
         printf( "Could not open input file.");
         goto end;
     }
+    
+    
     if ((ret = avformat_find_stream_info(ifmt_ctx, 0)) < 0) {
         printf( "Failed to retrieve input stream information");
         goto end;
@@ -377,5 +392,140 @@ end:
     }
     return;
 }
+
+- (void)getMovieDevice:(UIView *)view{
+    self.captureSession = [[AVCaptureSession alloc] init];
+    //    captureSession.sessionPreset = AVCaptureSessionPresetMedium;
+    self.captureSession.sessionPreset = AVCaptureSessionPreset1920x1080;
+    
+    self.videoSize = [self getVideoSize:self.captureSession.sessionPreset];
+    
+    self.captureDevice = [AVCaptureDevice defaultDeviceWithMediaType:AVMediaTypeVideo];
+    
+    NSError *error = nil;
+    self.captureDeviceInput = [AVCaptureDeviceInput deviceInputWithDevice:self.captureDevice error:&error];
+    
+    if([self.captureSession canAddInput:self.captureDeviceInput])
+        [self.captureSession addInput:self.captureDeviceInput];
+    else
+        NSLog(@"Error: %@", error);
+    
+    dispatch_queue_t queue = dispatch_queue_create("myEncoderH264Queue", NULL);
+    
+    self.captureVideoDataOutput = [[AVCaptureVideoDataOutput alloc] init];
+    [self.captureVideoDataOutput setSampleBufferDelegate:self queue:queue];
+    
+#if encodeModel
+    // nv12
+    NSDictionary *settings = [[NSDictionary alloc] initWithObjectsAndKeys:
+                              [NSNumber numberWithUnsignedInt:kCVPixelFormatType_420YpCbCr8BiPlanarFullRange],
+                              kCVPixelBufferPixelFormatTypeKey,
+                              nil];
+#else
+    // 32bgra
+    NSDictionary *settings = [[NSDictionary alloc] initWithObjectsAndKeys:
+                              [NSNumber numberWithUnsignedInt:kCVPixelFormatType_32BGRA],
+                              kCVPixelBufferPixelFormatTypeKey,
+                              nil];
+#endif
+    
+    self.captureVideoDataOutput.videoSettings = settings;
+    self.captureVideoDataOutput.alwaysDiscardsLateVideoFrames = YES;
+    
+    if ([self.captureSession canAddOutput:self.captureVideoDataOutput]) {
+        [self.captureSession addOutput:self.captureVideoDataOutput];
+    }
+    
+    // 保存Connection，用于在SampleBufferDelegate中判断数据来源（是Video/Audio？）
+    self.videoCaptureConnection = [self.captureVideoDataOutput connectionWithMediaType:AVMediaTypeVideo];
+    
+#pragma mark -- AVCaptureVideoPreviewLayer init
+    self.previewLayer = [AVCaptureVideoPreviewLayer layerWithSession:self.captureSession];
+    self.previewLayer.frame = view.layer.bounds;
+    self.previewLayer.videoGravity = AVLayerVideoGravityResizeAspectFill; // 设置预览时的视频缩放方式
+    [[self.previewLayer connection] setVideoOrientation:AVCaptureVideoOrientationPortrait]; // 设置视频的朝向
+    [self.captureSession startRunning];
+    [view.layer addSublayer:self.previewLayer];
+}
+
+- (CGSize)getVideoSize:(NSString *)sessionPreset {
+    CGSize size = CGSizeZero;
+    if ([sessionPreset isEqualToString:AVCaptureSessionPresetMedium]) {
+        size = CGSizeMake(480, 360);
+    } else if ([sessionPreset isEqualToString:AVCaptureSessionPreset1920x1080]) {
+        size = CGSizeMake(1920, 1080);
+    } else if ([sessionPreset isEqualToString:AVCaptureSessionPreset1280x720]) {
+        size = CGSizeMake(1280, 720);
+    } else if ([sessionPreset isEqualToString:AVCaptureSessionPreset640x480]) {
+        size = CGSizeMake(640, 480);
+    }
+    
+    return size;
+}
+
+#pragma mark --  AVCaptureVideo(Audio)DataOutputSampleBufferDelegate method
+- (void)captureOutput:(AVCaptureOutput *)captureOutput didOutputSampleBuffer:(CMSampleBufferRef)sampleBuffer fromConnection:(AVCaptureConnection *)connection
+{
+    
+    // 这里的sampleBuffer就是采集到的数据了，但它是Video还是Audio的数据，得根据connection来判断
+    if (connection == self.videoCaptureConnection) {
+        
+        // Video
+        //        NSLog(@"在这里获得video sampleBuffer，做进一步处理（编码H.264）");
+        
+        
+#if encodeModel
+        // encode
+        
+#else
+        CVPixelBufferRef pixelBuffer = CMSampleBufferGetImageBuffer(sampleBuffer);
+        
+        //        int pixelFormat = CVPixelBufferGetPixelFormatType(pixelBuffer);
+        //        switch (pixelFormat) {
+        //            case kCVPixelFormatType_420YpCbCr8BiPlanarVideoRange:
+        //                NSLog(@"Capture pixel format=NV12");
+        //                break;
+        //            case kCVPixelFormatType_422YpCbCr8:
+        //                NSLog(@"Capture pixel format=UYUY422");
+        //                break;
+        //            default:
+        //                NSLog(@"Capture pixel format=RGB32");
+        //                break;
+        //        }
+        
+        CVPixelBufferLockBaseAddress(pixelBuffer, 0);
+        
+        // render
+        [openglView render:pixelBuffer];
+        
+        CVPixelBufferUnlockBaseAddress(pixelBuffer, 0);
+#endif
+    }
+    //    else if (connection == _audioConnection) {
+    //        
+    //        // Audio
+    //        NSLog(@"这里获得audio sampleBuffer，做进一步处理（编码AAC）");
+    //    }
+    
+}
+
+
+- (void)showDevice{
+    avdevice_register_all();
+    AVFormatContext *pFormatCtx = avformat_alloc_context();
+    AVDictionary* options = NULL;
+    av_dict_set(&options,"list_devices","true",0);
+    AVInputFormat *iformat = av_find_input_format("avfoundation");
+    printf("==AVFoundation Device Info===\n");
+    avformat_open_input(&pFormatCtx,"",iformat,&options);
+    printf("=============================\n");
+    if(avformat_open_input(&pFormatCtx,"0",iformat,NULL)!=0){
+        printf("Couldn't open input stream.\n");
+        return ;
+    }
+    
+}
+
+
 
 @end

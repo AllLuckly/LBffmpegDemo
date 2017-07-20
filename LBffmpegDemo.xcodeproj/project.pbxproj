@@ -796,6 +796,8 @@
 				LIBRARY_SEARCH_PATHS = (
 					"$(inherited)",
 					"$(PROJECT_DIR)/FFmpeg-iOS/lib",
+					"$(PROJECT_DIR)/x264-iOS/lib",
+					"$(PROJECT_DIR)/FFmpeg-iOS/x264-iOS/lib",
 				);
 				PRODUCT_BUNDLE_IDENTIFIER = BISON.LBffmpegDemo;
 				PRODUCT_NAME = "$(TARGET_NAME)";
@@ -813,6 +815,8 @@
 				LIBRARY_SEARCH_PATHS = (
 					"$(inherited)",
 					"$(PROJECT_DIR)/FFmpeg-iOS/lib",
+					"$(PROJECT_DIR)/x264-iOS/lib",
+					"$(PROJECT_DIR)/FFmpeg-iOS/x264-iOS/lib",
 				);
 				PRODUCT_BUNDLE_IDENTIFIER = BISON.LBffmpegDemo;
 				PRODUCT_NAME = "$(TARGET_NAME)";

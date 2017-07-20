@@ -18,9 +18,46 @@
 //#include <libavformat/avformat.h>
 #include <libavutil/mathematics.h>
 #include <libavutil/time.h>
-/*----------------推流必须导入-----------------*/
+/*----------------系统摄像头必须导入-----------------*/
 
-@interface LBffmpegTool : NSObject
+#import <AVFoundation/AVFoundation.h>
+#import <UIKit/UIKit.h>
+/*-------------------------------------------*/
+
+/*----------------ffmpeg摄像头必须导入-----------------*/
+#include <stdio.h>
+#ifdef __cplusplus
+extern "C"
+{
+#endif
+#include <libavcodec/avcodec.h>
+#include <libavformat/avformat.h>
+#include <libswscale/swscale.h>
+#include <libavdevice/avdevice.h>
+    
+#ifdef __cplusplus
+};
+#endif
+/*---------------------------------------------------*/
+
+//Refresh Event
+#define SFM_REFRESH_EVENT  (SDL_USEREVENT + 1)
+
+#define SFM_BREAK_EVENT  (SDL_USEREVENT + 2)
+
+
+@interface LBffmpegTool : NSObject<AVCaptureVideoDataOutputSampleBufferDelegate>
+
+
+@property(nonatomic, strong) AVCaptureSession                *captureSession;
+@property(nonatomic, strong) AVCaptureDevice                 *captureDevice;
+@property(nonatomic, strong) AVCaptureDeviceInput            *captureDeviceInput;
+@property(nonatomic, strong) AVCaptureVideoDataOutput        *captureVideoDataOutput;
+@property(nonatomic, assign) CGSize                          videoSize;
+@property(nonatomic, strong) AVCaptureConnection             *videoCaptureConnection;
+@property(nonatomic, strong) AVCaptureVideoPreviewLayer      *previewLayer;
+
+
 
 +(instancetype)sharedInstance;
 
@@ -37,5 +74,12 @@
  *
  */
 - (void)pushFlow:(NSString *)input_str output_str:(NSString *)output_rtmpStr;
+
+///iOS系统获取摄像头
+- (void)getMovieDevice:(UIView *)view;
+
+///ffmpeg系统获取摄像头
+- (void)showDevice;
+
 
 @end
